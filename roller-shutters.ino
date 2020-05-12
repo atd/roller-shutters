@@ -1,179 +1,171 @@
-// Hardware usado -> Wemos D1 Pro
+//
+//  Original file from https://recretronica.wordpress.com/2018/11/05/openhab-19-controla-el-motor-de-tus-persianas/
+//
 
 #include <ESP8266WiFi.h>
 #include <PubSubClient.h>
 #include <EEPROM.h>
 
-// ***************************************************************************
-// Introducir los siguientes 11 valores para que funcione en vuestro entorno *
-// ***************************************************************************
+// ***************
+// Configuration *
+// ***************
 
-#define  RELAY1  14      // GPIO14 Pin D5 en Wemos D1 //Conectar al cable de subir persiana
-#define  RELAY2  16      // GPIO16 Pin D0 en Wemos D1 //Conectar al cable de bajar persiana
+// https://randomnerdtutorials.com/esp8266-pinout-reference-gpios/
+#define  RELAY_LEFT_UP    5       // GPIO5 Pin D1 in Wemos D1
+#define  RELAY_LEFT_DOWN  4       // GPIO4 Pin D2 in Wemos D1
+#define  RELAY_MIDDLE_UP    0       // GPIO0 Pin D3 in Wemos D1
+#define  RELAY_MIDDLE_DOWN  14      // GPIO14 Pin D5 in Wemos D1
+#define  RELAY_RIGHT_UP    12      // GPIO12 Pin D6 in Wemos D1
+#define  RELAY_RIGHT_DOWN  13      // GPIO13 Pin D7 in Wemos D1
 
-#define wifi_ssid "Nombre de tu WiFi"
-#define wifi_password "Password de tu WiFi"
+#define wifiSSID "Wifi SSID"
+#define wifiPassword "Wifi password"
 
-#define mqtt_server "IP de tu Raspberry"
-#define mqtt_port 1883  // Por defecto es 1883 pero puedes cambiarlo
-#define mqtt_client "Nombre de cliente"  // Cualquier nombre que no se repita
-#define mqtt_user "Usuario"
-#define mqtt_password "Contraseña"     
+#define mqttServer "MQTT server IP"
+#define mqttPort 1883
+#define mqttClient "Roller shutters"
+#define mqttUser ""
+#define mqttPassword ""
 
-#define intopic "topic por el que recibe los mensajes"  
+#define mqttTopic "mqtt_topic"
 
-#define segundos 24     // Introduce el tiempo en segundos que tarda la persiana en subir
+#define shutterRoundTime 24     // Time in seconds it takes to open or close the roller shutter
 
 //*****************************************************************************
 
-int paso = segundos * 10;
-int retardo = 0;
-
 WiFiClient espClient;
 PubSubClient client(espClient);
-long lastMsg = 0;
-unsigned int posicion = 0;
-unsigned int lectura;
 
-bool relay_stopped(){
-  if (digitalRead (RELAY1) == HIGH && digitalRead (RELAY2) == HIGH){
+int shutterStep = shutterRoundTime * 10;
+int shutterDelay = 0;
+unsigned int shutterPosition = 0;
+unsigned int newPosition;
+long lastMsg = 0;
+
+bool relayStopped() {
+  if (digitalRead (RELAY_LEFT_UP) == HIGH && digitalRead (RELAY_LEFT_DOWN) == HIGH){
     return true;
   } else {
     return false;
   }
 }
 
-void setup_wifi() {
-    //WiFi.softAPdisconnect();
-    //WiFi.disconnect();
-    //WiFi.mode(WIFI_STA);
-    //delay(100);
-    delay(10);
-    Serial.println();
-    Serial.print("Connecting to ");
-    Serial.println(wifi_ssid);
+void setupWifi() {
+  delay(10);
 
-    WiFi.begin(wifi_ssid, wifi_password);
+  Serial.println();
+  Serial.print("Connecting to ");
+  Serial.println(wifiSSID);
 
-    while (WiFi.status() != WL_CONNECTED) {
-        delay(500);
-        Serial.print(".");
-    }
+  WiFi.begin(wifiSSID, wifiPassword);
 
-    Serial.println("");
-    Serial.println("WiFi connected");
-    Serial.println("IP address: ");
-    Serial.println(WiFi.localIP());
+  while (WiFi.status() != WL_CONNECTED) {
+    delay(500);
+    Serial.print(".");
+  }
+
+  Serial.println("");
+  Serial.println("WiFi connected");
+  Serial.print("IP address: ");
+  Serial.println(WiFi.localIP());
 }
 
-void callback(char* topic, byte* payload, unsigned int length) {
-    Serial.print("Message arrived [");
-    Serial.print(topic);
-    Serial.print("] ");
-    String stringOne = "";
-    for (int i = 0; i < length; i++) {
-        Serial.print((char)payload[i]);
-        stringOne = stringOne + (char)payload[i];
+void mqttCallback(char* topic, byte* payload, unsigned int length) {
+  Serial.print("Message arrived [");
+  Serial.print(topic);
+  Serial.print("] ");
+  String message = "";
+
+  for (int i = 0; i < length; i++) {
+    Serial.print((char)payload[i]);
+    message = message + (char)payload[i];
+  }
+  Serial.println("\n");
+
+  if (relayStopped()) {
+    newPosition = message.toInt();
+
+    if (newPosition >= 0 && newPosition <= 100) {
+      if (newPosition > shutterPosition) {
+        digitalWrite(RELAY_LEFT_UP, LOW);
+
+        shutterDelay = newPosition - shutterPosition;
+      } else {
+        digitalWrite(RELAY_LEFT_DOWN, LOW);
+
+        shutterDelay = shutterPosition - newPosition;
+      }
+      shutterPosition = newPosition;
     }
-    Serial.println("\n");
-  if (relay_stopped()){
-    if (stringOne == "DECREASE"){
-          if ((posicion + 20) > 100){
-            retardo = 100 - posicion;
-            posicion = 100;
-          } else {
-            posicion = posicion + 20;
-            retardo = 20;
-          }
-          if (retardo > 0){
-            digitalWrite(RELAY1, LOW);
-          }
-    } else if (stringOne == "INCREASE"){
-          if (posicion < 20){
-            retardo = posicion;
-            posicion = 0;
-          } else {
-            posicion = posicion - 20;
-            retardo = 20;
-          }
-          if (retardo > 0){
-            digitalWrite(RELAY2, LOW);
-          }
-    } else {
-        lectura = stringOne.toInt();
-        if (lectura >= 0 && lectura < 101) {
-            if (lectura > posicion) {
-                digitalWrite(RELAY1, LOW);
-                retardo = lectura-posicion;
-            } else {
-                digitalWrite(RELAY2, LOW);
-                retardo = posicion-lectura;      
-            }
-        posicion = lectura;
-        }
-    }
-    EEPROM.put(0, posicion);
-    EEPROM.commit();
-  }  
+  }
+  EEPROM.put(0, shutterPosition);
+  EEPROM.commit();
 }
 
 void reconnect() {
-    // Bucle hasta conseguir la reconexión
-    while (!client.connected()) {
-        // Intento de conexión
-        Serial.print("Attempting MQTT connection...");
-        
-        if (client.connect(mqtt_client, mqtt_user, mqtt_password)) {  // Cambiar el nombre si ya hay dispositivos conectados
-            Serial.println("connected");
-            client.subscribe(intopic);
-        } else {
-            Serial.print("failed, rc=");
-            Serial.print(client.state());
-            Serial.println(" try again in 5 seconds");
-            
-            // Espera 5 segundos para un nuevo intento
-            delay(5000);
-        }
+  // Bucle hasta conseguir la reconexión
+  while (!client.connected()) {
+    // Intento de conexión
+    Serial.print("Attempting MQTT connection...");
+
+    if (client.connect(mqttClient, mqttUser, mqttPassword)) {  // Cambiar el nombre si ya hay dispositivos conectados
+      Serial.println("connected");
+      client.subscribe(mqttTopic);
+    } else {
+      Serial.print("failed, rc=");
+      Serial.print(client.state());
+      Serial.println(" try again in 5 seconds");
+
+      // Espera 5 segundos para un nuevo intento
+      delay(5000);
     }
+  }
 }
 
 void setup() {
-    EEPROM.begin(512);
-    Serial.begin(115200);
-    pinMode(RELAY1, OUTPUT);
-    pinMode(RELAY2, OUTPUT);
-    digitalWrite(RELAY1, HIGH);
-    digitalWrite(RELAY2, HIGH);
-    setup_wifi();
-    client.setClient(espClient);
-    client.setServer(mqtt_server, mqtt_port);
-    client.setCallback(callback);
-    EEPROM.get(0, posicion);   // Carga de la EEPROM la posición de la persiana
-    if (posicion > 100) {
-        posicion = 0;
-        EEPROM.put(0, posicion);
-        EEPROM.commit();
-    }
+  EEPROM.begin(512);
+  Serial.begin(115200);
+
+  pinMode(RELAY_LEFT_UP, OUTPUT);
+  pinMode(RELAY_LEFT_DOWN, OUTPUT);
+  digitalWrite(RELAY_LEFT_UP, HIGH);
+  digitalWrite(RELAY_LEFT_DOWN, HIGH);
+
+  setupWifi();
+
+  client.setClient(espClient);
+  client.setServer(mqttServer, mqttPort);
+  client.setCallback(mqttCallback);
+
+  EEPROM.get(0, shutterPosition);   // Carga de la EEPROM la posición de la persiana
+
+  if (shutterPosition > 100) {
+    shutterPosition = 0;
+    EEPROM.put(0, shutterPosition);
+    EEPROM.commit();
+  }
 }
 
 void loop() {
-    if (!client.connected()) {
-        reconnect();
-    }
-    client.loop();
-    if (retardo != 0) {
-        delay(paso);
-        retardo -= 1;
-    } else {
-        digitalWrite(RELAY1, HIGH);
-        digitalWrite(RELAY2, HIGH);
-    }
+  if (!client.connected()) {
+    reconnect();
+  }
 
-    // Las siguientes líneas son sólamente para comprobar el funcionamiento
-    long now = millis();
-    if (now - lastMsg > 10000) {
-        lastMsg = now;
-        Serial.print("Posición - ");
-        Serial.println(posicion);
-    }
+  client.loop();
+
+  if (shutterDelay != 0) {
+    delay(shutterStep);
+    shutterDelay -= 1;
+  } else {
+    digitalWrite(RELAY_LEFT_UP, HIGH);
+    digitalWrite(RELAY_LEFT_DOWN, HIGH);
+  }
+
+  // Las siguientes líneas son sólamente para comprobar el funcionamiento
+  long now = millis();
+  if (now - lastMsg > 10000) {
+    lastMsg = now;
+    Serial.print("Position: ");
+    Serial.println(shutterPosition);
+  }
 }
