@@ -117,8 +117,8 @@ void mqttCallback(char* topic, byte* payload, unsigned int length) {
       shutterPosition = newPosition;
     }
   }
-  EEPROM.put(0, shutterPosition);
-  EEPROM.commit();
+  //EEPROM.put(0, shutterPosition);
+  //EEPROM.commit();
 }
 
 void reconnect() {
@@ -152,7 +152,7 @@ void setupUptime() {
 void setup() {
   setupUptime();
 
-  EEPROM.begin(512);
+  //EEPROM.begin(512);
   Serial.begin(115200);
 
   pinMode(RELAY_LEFT_UP, OUTPUT);
@@ -166,12 +166,12 @@ void setup() {
   client.setServer(mqttServer, mqttPort);
   client.setCallback(mqttCallback);
 
-  EEPROM.get(0, shutterPosition);   // Carga de la EEPROM la posición de la persiana
+  //EEPROM.get(0, shutterPosition);   // Carga de la EEPROM la posición de la persiana
 
   if (shutterPosition > 100) {
     shutterPosition = 0;
-    EEPROM.put(0, shutterPosition);
-    EEPROM.commit();
+    //EEPROM.put(0, shutterPosition);
+    //EEPROM.commit();
   }
 }
 
