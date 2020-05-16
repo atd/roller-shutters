@@ -18,6 +18,7 @@
 #define  RELAY_MIDDLE_DOWN  14      // GPIO14 Pin D5 in Wemos D1
 #define  RELAY_RIGHT_UP    12      // GPIO12 Pin D6 in Wemos D1
 #define  RELAY_RIGHT_DOWN  13      // GPIO13 Pin D7 in Wemos D1
+#define  shuttersSize 3
 
 #define wifiSSID "Wifi SSID"
 #define wifiPassword "Wifi password"
@@ -58,6 +59,48 @@ int shutterStep = shutterRoundTime * 10;
 int shutterDelay = 0;
 unsigned int shutterPosition = 0;
 long lastMsg = 0;
+
+class Shutter {
+public:
+  Shutter(String label, unsigned int pinUp, unsigned int pinDown) {
+    this->label = label;
+    position = 0;
+    _pinUp = pinUp;
+    _pinDown = pinDown;
+  }
+
+  String label;
+  unsigned int position;
+  
+private:
+  unsigned int _pinUp;
+  unsigned int _pinDown;
+  
+};
+
+
+class ShutterList {
+public:
+  Shutter *list[shuttersSize];
+  
+  ShutterList() {
+    list[0] = new Shutter("left", RELAY_LEFT_UP, RELAY_LEFT_DOWN);
+    list[1] = new Shutter("middle", RELAY_MIDDLE_UP, RELAY_MIDDLE_DOWN);
+    list[2] = new Shutter("right", RELAY_RIGHT_UP, RELAY_RIGHT_DOWN);
+  }
+
+  Shutter find(char* label) {
+    for (int i = 0; i < shuttersSize; i++) {
+      if (list[i]->label == label) {
+        return *list[i];
+      }
+    }
+    Serial.print("Invalid shutter label: ");
+    Serial.println(label);
+  }
+};
+
+ShutterList shutters;
 
 void setupUptime() {
   uptime.d = 0;
