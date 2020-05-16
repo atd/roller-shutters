@@ -70,10 +70,8 @@ public:
   }
 
   void setup() {
-    pinMode(_pinUp, OUTPUT);
-    pinMode(_pinDown, OUTPUT);
-    digitalWrite(_pinUp, HIGH);
-    digitalWrite(_pinDown, HIGH);
+    setupPins();
+    setupPosition();  
   }
 
   String label;
@@ -82,6 +80,23 @@ public:
 private:
   unsigned int _pinUp;
   unsigned int _pinDown;
+
+  void setupPins() {
+    pinMode(_pinUp, OUTPUT);
+    pinMode(_pinDown, OUTPUT);
+    digitalWrite(_pinUp, HIGH);
+    digitalWrite(_pinDown, HIGH);
+  }
+
+  void setupPosition() {
+  //EEPROM.get(0, position);   // Carga de la EEPROM la posición de la persiana
+
+  if (position > 100) {
+    position = 0;
+    //EEPROM.put(0, position);
+    //EEPROM.commit();
+  }
+}
   
 };
 
@@ -188,16 +203,6 @@ void setupMqtt() {
   client.setCallback(mqttCallback);
 }
 
-void setupShutterPosition() {
-  //EEPROM.get(0, shutterPosition);   // Carga de la EEPROM la posición de la persiana
-
-  if (shutterPosition > 100) {
-    shutterPosition = 0;
-    //EEPROM.put(0, shutterPosition);
-    //EEPROM.commit();
-  }
-}
-
 void setup() {
   setupUptime();
 
@@ -209,7 +214,6 @@ void setup() {
   setupWifi();
   setupMqtt();
 
-  setupShutterPosition();
 }
 
 // Update the uptime information.
