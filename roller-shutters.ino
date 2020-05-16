@@ -69,6 +69,13 @@ public:
     _pinDown = pinDown;
   }
 
+  void setup() {
+    pinMode(_pinUp, OUTPUT);
+    pinMode(_pinDown, OUTPUT);
+    digitalWrite(_pinUp, HIGH);
+    digitalWrite(_pinDown, HIGH);
+  }
+
   String label;
   unsigned int position;
   
@@ -98,6 +105,12 @@ public:
     Serial.print("Invalid shutter label: ");
     Serial.println(label);
   }
+
+  void setup() {
+    for (int i = 0; i < shuttersSize; i++) {
+      list[i]->setup();
+    }
+  }
 };
 
 ShutterList shutters;
@@ -107,13 +120,6 @@ void setupUptime() {
   uptime.h = 0;
   uptime.m = 0;
   uptime.s = 0;
-}
-
-void setupPins() {
-  pinMode(RELAY_LEFT_UP, OUTPUT);
-  pinMode(RELAY_LEFT_DOWN, OUTPUT);
-  digitalWrite(RELAY_LEFT_UP, HIGH);
-  digitalWrite(RELAY_LEFT_DOWN, HIGH);
 }
 
 void setupWifi() {
@@ -198,7 +204,8 @@ void setup() {
   //EEPROM.begin(512);
   Serial.begin(115200);
 
-  setupPins();
+  shutters.setup();
+  
   setupWifi();
   setupMqtt();
 
