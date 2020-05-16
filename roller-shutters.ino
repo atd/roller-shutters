@@ -35,15 +35,6 @@
 
 //*****************************************************************************
 
-WiFiClient espClient;
-PubSubClient client(espClient);
-
-int shutterStep = shutterRoundTime * 10;
-int shutterDelay = 0;
-unsigned int shutterPosition = 0;
-unsigned int newPosition;
-long lastMsg = 0;
-
 struct Uptime {
     // d, h, m, s and ms record the current uptime.
     int d;                      // Days (0-)
@@ -58,15 +49,29 @@ struct Uptime {
     // million years.
     unsigned long last_millis;
 };
-
 struct Uptime uptime;
 
-bool relayStopped() {
-  if (digitalRead (RELAY_LEFT_UP) == HIGH && digitalRead (RELAY_LEFT_DOWN) == HIGH){
-    return true;
-  } else {
-    return false;
-  }
+WiFiClient espClient;
+PubSubClient client(espClient);
+
+int shutterStep = shutterRoundTime * 10;
+int shutterDelay = 0;
+unsigned int shutterPosition = 0;
+unsigned int newPosition;
+long lastMsg = 0;
+
+void setupUptime() {
+  uptime.d = 0;
+  uptime.h = 0;
+  uptime.m = 0;
+  uptime.s = 0;
+}
+
+void setupPins() {
+  pinMode(RELAY_LEFT_UP, OUTPUT);
+  pinMode(RELAY_LEFT_DOWN, OUTPUT);
+  digitalWrite(RELAY_LEFT_UP, HIGH);
+  digitalWrite(RELAY_LEFT_DOWN, HIGH);
 }
 
 void setupWifi() {
@@ -87,6 +92,14 @@ void setupWifi() {
   Serial.println("WiFi connected");
   Serial.print("IP address: ");
   Serial.println(WiFi.localIP());
+}
+
+bool relayStopped() {
+  if (digitalRead (RELAY_LEFT_UP) == HIGH && digitalRead (RELAY_LEFT_DOWN) == HIGH){
+    return true;
+  } else {
+    return false;
+  }
 }
 
 void mqttCallback(char* topic, byte* payload, unsigned int length) {
@@ -121,51 +134,13 @@ void mqttCallback(char* topic, byte* payload, unsigned int length) {
   //EEPROM.commit();
 }
 
-void reconnect() {
-  // Bucle hasta conseguir la reconexión
-  while (!client.connected()) {
-    // Intento de conexión
-    Serial.print("Attempting MQTT connection...");
-
-    if (client.connect(mqttClient, mqttUser, mqttPassword)) {  // Cambiar el nombre si ya hay dispositivos conectados
-      Serial.println("connected");
-      client.subscribe(mqttStatusTopic);
-    } else {
-      Serial.print("failed, rc=");
-      Serial.print(client.state());
-      Serial.println(" try again in 5 seconds");
-
-      // Espera 5 segundos para un nuevo intento
-      delay(5000);
-    }
-  }
-}
-
-void setupUptime() {
-  uptime.d = 0;
-  uptime.h = 0;
-  uptime.m = 0;
-  uptime.s = 0;
-}
-
-
-void setup() {
-  setupUptime();
-
-  //EEPROM.begin(512);
-  Serial.begin(115200);
-
-  pinMode(RELAY_LEFT_UP, OUTPUT);
-  pinMode(RELAY_LEFT_DOWN, OUTPUT);
-  digitalWrite(RELAY_LEFT_UP, HIGH);
-  digitalWrite(RELAY_LEFT_DOWN, HIGH);
-
-  setupWifi();
-
+void setupMqtt() {
   client.setClient(espClient);
   client.setServer(mqttServer, mqttPort);
   client.setCallback(mqttCallback);
+}
 
+void setupShutterPosition() {
   //EEPROM.get(0, shutterPosition);   // Carga de la EEPROM la posición de la persiana
 
   if (shutterPosition > 100) {
@@ -173,6 +148,19 @@ void setup() {
     //EEPROM.put(0, shutterPosition);
     //EEPROM.commit();
   }
+}
+
+void setup() {
+  setupUptime();
+
+  //EEPROM.begin(512);
+  Serial.begin(115200);
+
+  setupPins();
+  setupWifi();
+  setupMqtt();
+
+  setupShutterPosition();
 }
 
 // Update the uptime information.
@@ -224,6 +212,26 @@ void publishUptime() {
   serializeJson(json, payload);
 
   client.publish(mqttUptimeTopic, payload);
+}
+
+void reconnect() {
+  // Bucle hasta conseguir la reconexión
+  while (!client.connected()) {
+    // Intento de conexión
+    Serial.print("Attempting MQTT connection...");
+
+    if (client.connect(mqttClient, mqttUser, mqttPassword)) {  // Cambiar el nombre si ya hay dispositivos conectados
+      Serial.println("connected");
+      client.subscribe(mqttStatusTopic);
+    } else {
+      Serial.print("failed, rc=");
+      Serial.print(client.state());
+      Serial.println(" try again in 5 seconds");
+
+      // Espera 5 segundos para un nuevo intento
+      delay(5000);
+    }
+  }
 }
 
 void loop() {
