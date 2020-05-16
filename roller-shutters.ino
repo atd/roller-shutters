@@ -57,7 +57,6 @@ PubSubClient client(espClient);
 int shutterStep = shutterRoundTime * 10;
 int shutterDelay = 0;
 unsigned int shutterPosition = 0;
-unsigned int newPosition;
 long lastMsg = 0;
 
 void setupUptime() {
@@ -115,7 +114,7 @@ void mqttCallback(char* topic, byte* payload, unsigned int length) {
   Serial.println("\n");
 
   if (relayStopped()) {
-    newPosition = message.toInt();
+    unsigned int newPosition = message.toInt();
 
     if (newPosition >= 0 && newPosition <= 100) {
       if (newPosition > shutterPosition) {
