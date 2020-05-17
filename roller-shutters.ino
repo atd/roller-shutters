@@ -29,7 +29,7 @@
 #define mqttUser ""
 #define mqttPassword ""
 
-#define mqttStatusTopic "ew/status"
+#define mqttPositionTopic "ew/position"
 #define mqttUptimeTopic "ew/uptime"
 
 #define shutterRoundTime 24     // Time in seconds it takes to open or close the roller shutter
@@ -57,16 +57,19 @@ PubSubClient client(espClient);
 
 int shutterStep = shutterRoundTime * 10;
 int shutterDelay = 0;
-unsigned int shutterPosition = 0;
 long lastMsg = 0;
 
 class Shutter {
 public:
+  String label;
+  unsigned int position;
+  
   Shutter(String label, unsigned int pinUp, unsigned int pinDown) {
     this->label = label;
     position = 0;
     _pinUp = pinUp;
     _pinDown = pinDown;
+    _delay = 0;
   }
 
   void setup() {
@@ -74,12 +77,42 @@ public:
     setupPosition();  
   }
 
-  String label;
-  unsigned int position;
+  void subscribe(PubSubClient client) {
+    char topic[50];
+    sprintf(topic,"%s/%s", mqttPositionTopic, label.c_str());
+    client.subscribe(topic);
+  }
+
+  void setPosition(int newPosition) {
+    Serial.print("setPosition ");
+    Serial.print(label + ": ");
+    Serial.println(String(newPosition));
+    if (relayStopped()) {   
+      if (newPosition >= 0 && newPosition <= 100) {
+        if (newPosition > position) {
+          digitalWrite(_pinUp, LOW);
+  
+          _delay = newPosition - position;
+        } else {
+          digitalWrite(_pinDown, LOW);
+  
+          _delay = position - newPosition;
+        }
+        position = newPosition;
+      }
+    }
+    //EEPROM.put(0, shutterPosition);
+    //EEPROM.commit();
+  }
   
 private:
   unsigned int _pinUp;
   unsigned int _pinDown;
+  unsigned int _delay;
+
+  bool relayStopped() {
+    return digitalRead(_pinUp) == HIGH && digitalRead(_pinDown) == HIGH;
+  }
 
   void setupPins() {
     pinMode(_pinUp, OUTPUT);
@@ -89,17 +122,15 @@ private:
   }
 
   void setupPosition() {
-  //EEPROM.get(0, position);   // Carga de la EEPROM la posición de la persiana
+    //EEPROM.get(0, position);   // Carga de la EEPROM la posición de la persiana
 
-  if (position > 100) {
-    position = 0;
-    //EEPROM.put(0, position);
-    //EEPROM.commit();
+    if (position > 100) {
+      position = 0;
+      //EEPROM.put(0, position);
+      //EEPROM.commit();
+    }
   }
-}
-  
 };
-
 
 class ShutterList {
 public:
@@ -113,7 +144,7 @@ public:
 
   Shutter find(char* label) {
     for (int i = 0; i < shuttersSize; i++) {
-      if (list[i]->label == label) {
+      if (list[i]->label == String(label)) {
         return *list[i];
       }
     }
@@ -125,6 +156,16 @@ public:
     for (int i = 0; i < shuttersSize; i++) {
       list[i]->setup();
     }
+  }
+
+  void subscribe(PubSubClient client) {
+    for (int i = 0; i < shuttersSize; i++) {
+      list[i]->subscribe(client);
+    }
+  }
+
+  void setPosition(char * label, int newPosition) {
+    find(label).setPosition(newPosition);
   }
 };
 
@@ -157,14 +198,6 @@ void setupWifi() {
   Serial.println(WiFi.localIP());
 }
 
-bool relayStopped() {
-  if (digitalRead (RELAY_LEFT_UP) == HIGH && digitalRead (RELAY_LEFT_DOWN) == HIGH){
-    return true;
-  } else {
-    return false;
-  }
-}
-
 void mqttCallback(char* topic, byte* payload, unsigned int length) {
   Serial.print("Message arrived [");
   Serial.print(topic);
@@ -177,24 +210,10 @@ void mqttCallback(char* topic, byte* payload, unsigned int length) {
   }
   Serial.println("\n");
 
-  if (relayStopped()) {
-    unsigned int newPosition = message.toInt();
+  char label[10];
+  sprintf(label, "%s", topic + strlen(mqttPositionTopic) + 1);
 
-    if (newPosition >= 0 && newPosition <= 100) {
-      if (newPosition > shutterPosition) {
-        digitalWrite(RELAY_LEFT_UP, LOW);
-
-        shutterDelay = newPosition - shutterPosition;
-      } else {
-        digitalWrite(RELAY_LEFT_DOWN, LOW);
-
-        shutterDelay = shutterPosition - newPosition;
-      }
-      shutterPosition = newPosition;
-    }
-  }
-  //EEPROM.put(0, shutterPosition);
-  //EEPROM.commit();
+  shutters.setPosition(label, message.toInt());
 }
 
 void setupMqtt() {
@@ -275,7 +294,8 @@ void reconnect() {
 
     if (client.connect(mqttClient, mqttUser, mqttPassword)) {  // Cambiar el nombre si ya hay dispositivos conectados
       Serial.println("connected");
-      client.subscribe(mqttStatusTopic);
+
+      shutters.subscribe(client);
     } else {
       Serial.print("failed, rc=");
       Serial.print(client.state());
@@ -296,21 +316,22 @@ void loop() {
 
   client.loop();
 
-  if (shutterDelay != 0) {
-    delay(shutterStep);
-    shutterDelay -= 1;
-  } else {
-    digitalWrite(RELAY_LEFT_UP, HIGH);
-    digitalWrite(RELAY_LEFT_DOWN, HIGH);
-  }
+//  if (shutterDelay != 0) {
+//    delay(shutterStep);
+//    shutterDelay -= 1;
+//  } else {
+//    digitalWrite(RELAY_LEFT_UP, HIGH);
+//    digitalWrite(RELAY_LEFT_DOWN, HIGH);
+//  }
 
   // Las siguientes líneas son sólamente para comprobar el funcionamiento
   long now = millis();
   if (now - lastMsg > 10000) {
+    lastMsg = now;
+    
     publishUptime();
 
-    lastMsg = now;
-    Serial.print("Position: ");
-    Serial.println(shutterPosition);
+//    Serial.print("Position: ");
+//    Serial.println(shutterPosition);
   }
 }
