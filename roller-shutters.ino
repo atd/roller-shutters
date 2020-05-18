@@ -55,25 +55,26 @@ struct Uptime uptime;
 WiFiClient espClient;
 PubSubClient client(espClient);
 
-int shutterStep = shutterRoundTime * 10;
-int shutterDelay = 0;
+int stepDelay = shutterRoundTime * 10;
 long lastMsg = 0;
 
 class Shutter {
 public:
   String label;
   unsigned int position;
+  unsigned int steps;
   
   Shutter(String label, unsigned int pinUp, unsigned int pinDown) {
     this->label = label;
     position = 0;
+    steps = 0;
     _pinUp = pinUp;
     _pinDown = pinDown;
-    _delay = 0;
   }
 
   void setup() {
     setupPins();
+    stop();
     setupPosition();  
   }
 
@@ -87,16 +88,17 @@ public:
     Serial.print("setPosition ");
     Serial.print(label + ": ");
     Serial.println(String(newPosition));
-    if (relayStopped()) {   
+    
+    if (relayStopped()) {
       if (newPosition >= 0 && newPosition <= 100) {
         if (newPosition > position) {
           digitalWrite(_pinUp, LOW);
   
-          _delay = newPosition - position;
+          steps = newPosition - position;
         } else {
           digitalWrite(_pinDown, LOW);
   
-          _delay = position - newPosition;
+          steps = position - newPosition;
         }
         position = newPosition;
       }
@@ -104,11 +106,27 @@ public:
     //EEPROM.put(0, shutterPosition);
     //EEPROM.commit();
   }
-  
+
+  void stop() {
+    digitalWrite(_pinUp, HIGH);
+    digitalWrite(_pinDown, HIGH);
+  }
+
+  void decrementStep() {
+    if (steps == 0) {
+      return;
+    }
+
+    steps -= 1;
+  }
+
+  void publish() {
+    Serial.println(label + " position: " + String(position));
+  }
+
 private:
   unsigned int _pinUp;
   unsigned int _pinDown;
-  unsigned int _delay;
 
   bool relayStopped() {
     return digitalRead(_pinUp) == HIGH && digitalRead(_pinDown) == HIGH;
@@ -117,8 +135,6 @@ private:
   void setupPins() {
     pinMode(_pinUp, OUTPUT);
     pinMode(_pinDown, OUTPUT);
-    digitalWrite(_pinUp, HIGH);
-    digitalWrite(_pinDown, HIGH);
   }
 
   void setupPosition() {
@@ -142,10 +158,10 @@ public:
     list[2] = new Shutter("right", RELAY_RIGHT_UP, RELAY_RIGHT_DOWN);
   }
 
-  Shutter find(char* label) {
+  Shutter *find(char* label) {
     for (int i = 0; i < shuttersSize; i++) {
       if (list[i]->label == String(label)) {
-        return *list[i];
+        return list[i];
       }
     }
     Serial.print("Invalid shutter label: ");
@@ -158,6 +174,15 @@ public:
     }
   }
 
+  void loop() {
+    if (anyStep()) {
+      delay(stepDelay);
+      decrementStep();
+    } else {
+      stop();
+    }
+  }
+
   void subscribe(PubSubClient client) {
     for (int i = 0; i < shuttersSize; i++) {
       list[i]->subscribe(client);
@@ -165,7 +190,35 @@ public:
   }
 
   void setPosition(char * label, int newPosition) {
-    find(label).setPosition(newPosition);
+    find(label)->setPosition(newPosition);
+  }
+
+  void publish() {
+    for (int i = 0; i < shuttersSize; i++) {
+      list[i]->publish();
+    }
+  }
+
+private:
+  bool anyStep() {
+    for (int i = 0; i < shuttersSize; i++) {
+      if (list[i]->steps != 0) {
+        return true;
+      }
+    }    
+    return false;
+  }
+
+  void decrementStep() {
+    for (int i = 0; i < shuttersSize; i++) {
+      list[i]->decrementStep();
+    }
+  }
+
+  void stop() {
+    for (int i = 0; i < shuttersSize; i++) {
+      list[i]->stop();
+    }
   }
 };
 
@@ -208,7 +261,7 @@ void mqttCallback(char* topic, byte* payload, unsigned int length) {
     Serial.print((char)payload[i]);
     message = message + (char)payload[i];
   }
-  Serial.println("\n");
+  Serial.print("\n");
 
   char label[10];
   sprintf(label, "%s", topic + strlen(mqttPositionTopic) + 1);
@@ -232,7 +285,6 @@ void setup() {
   
   setupWifi();
   setupMqtt();
-
 }
 
 // Update the uptime information.
@@ -315,14 +367,9 @@ void loop() {
   }
 
   client.loop();
+  shutters.loop();
 
-//  if (shutterDelay != 0) {
-//    delay(shutterStep);
-//    shutterDelay -= 1;
-//  } else {
-//    digitalWrite(RELAY_LEFT_UP, HIGH);
-//    digitalWrite(RELAY_LEFT_DOWN, HIGH);
-//  }
+  
 
   // Las siguientes líneas son sólamente para comprobar el funcionamiento
   long now = millis();
@@ -330,8 +377,6 @@ void loop() {
     lastMsg = now;
     
     publishUptime();
-
-//    Serial.print("Position: ");
-//    Serial.println(shutterPosition);
+    shutters.publish();
   }
 }
