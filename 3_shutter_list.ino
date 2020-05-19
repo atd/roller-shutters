@@ -27,12 +27,13 @@ public:
   }
 
   void loop() {
-    if (anyStep()) {
-      delay(stepDelay);
-      decrementStep();
-    } else {
-      stop();
+    if (noSteps()) {
+      return;
     }
+    
+    delay(stepDelay);
+    
+    afterStep();
   }
 
   void subscribe(PubSubClient client) {
@@ -52,24 +53,18 @@ public:
   }
 
 private:
-  bool anyStep() {
+  bool noSteps() {
     for (int i = 0; i < shuttersSize; i++) {
       if (list[i]->steps != 0) {
-        return true;
+        return false;
       }
     }    
-    return false;
+    return true;
   }
 
-  void decrementStep() {
+  void afterStep() {
     for (int i = 0; i < shuttersSize; i++) {
-      list[i]->decrementStep();
-    }
-  }
-
-  void stop() {
-    for (int i = 0; i < shuttersSize; i++) {
-      list[i]->stop();
+      list[i]->afterStep();
     }
   }
 };

@@ -47,17 +47,21 @@ public:
     //EEPROM.commit();
   }
 
-  void stop() {
-    digitalWrite(_pinUp, HIGH);
-    digitalWrite(_pinDown, HIGH);
-  }
-
-  void decrementStep() {
+  void afterStep() {
     if (steps == 0) {
       return;
     }
-
+    
     steps -= 1;
+    
+    if (steps == 0) {
+      stop();
+    }
+  }
+
+  void stop() {
+    digitalWrite(_pinUp, HIGH);
+    digitalWrite(_pinDown, HIGH);
   }
 
   void publish() {
