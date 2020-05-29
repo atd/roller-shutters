@@ -2,12 +2,19 @@ class Shutter {
 public:
   String label;
   unsigned int position;
-  unsigned int steps;
+  unsigned int newPosition;
+  char statTopic[50];
+  char cmndTopic[50];
   
   Shutter(String label, unsigned int pinUp, unsigned int pinDown) {
     this->label = label;
+
+    sprintf(statTopic,"%s/%s", mqttStatTopic, label.c_str());
+    sprintf(cmndTopic,"%s/%s", mqttCmndTopic, label.c_str());
+    
     position = 0;
-    steps = 0;
+    newPosition = 0;
+    
     _pinUp = pinUp;
     _pinDown = pinDown;
   }
@@ -19,42 +26,39 @@ public:
   }
 
   void subscribe() {
-    char topic[50];
-    sprintf(topic,"%s/%s", mqttCmndTopic, label.c_str());
-    client.subscribe(topic);
+    client.subscribe(cmndTopic);
   }
 
-  void setPosition(int newPosition) {
+  int steps() {
+    return newPosition - position;
+  }
+
+  void setPosition(int updatePosition) {
     Serial.print("setPosition ");
     Serial.print(label + ": ");
-    Serial.println(String(newPosition));
-    
-    if (relayStopped()) {
-      if (newPosition >= 0 && newPosition <= 100) {
-        if (newPosition > position) {
-          digitalWrite(_pinUp, LOW);
-  
-          steps = newPosition - position;
-        } else {
-          digitalWrite(_pinDown, LOW);
-  
-          steps = position - newPosition;
-        }
-        position = newPosition;
-      }
-    }
-    //EEPROM.put(0, shutterPosition);
-    //EEPROM.commit();
+    Serial.println(String(updatePosition));
+
+    newPosition = updatePosition;
+
+    updateRelays();
   }
+  
 
   void afterStep() {
-    if (steps == 0) {
+    if (steps() == 0) {
       return;
     }
+
+    position += (steps() > 0 ? 1 : -1);
+
+    char positionChar[3];
+    sprintf(positionChar, "%i", position);
+    client.publish(statTopic, positionChar);
     
-    steps -= 1;
+    //EEPROM.put(0, shutterPosition);
+    //EEPROM.commit();
     
-    if (steps == 0) {
+    if (steps() == 0) {
       stop();
     }
   }
@@ -72,6 +76,33 @@ private:
   unsigned int _pinUp;
   unsigned int _pinDown;
 
+  void updateRelays() {
+    if (steps() > 0) {
+      if (movingDown()) {
+        stop();
+      }
+
+      digitalWrite(_pinUp, LOW);
+    } else if (steps() < 0) {
+      if (movingUp()) {
+        stop();
+      }
+      
+      digitalWrite(_pinDown, LOW);
+    } else {
+      stop();
+    }
+    
+  }
+
+  bool movingUp() {
+    return digitalRead(_pinUp) == LOW;
+  }
+
+  bool movingDown() {
+    return digitalRead(_pinDown) == LOW;
+  }
+
   bool relayStopped() {
     return digitalRead(_pinUp) == HIGH && digitalRead(_pinDown) == HIGH;
   }
@@ -86,6 +117,7 @@ private:
 
     if (position > 100) {
       position = 0;
+      newPosition = 0;
       //EEPROM.put(0, position);
       //EEPROM.commit();
     }

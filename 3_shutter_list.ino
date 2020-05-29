@@ -55,7 +55,7 @@ public:
 private:
   bool noSteps() {
     for (int i = 0; i < shuttersSize; i++) {
-      if (list[i]->steps != 0) {
+      if (list[i]->steps() != 0) {
         return false;
       }
     }    

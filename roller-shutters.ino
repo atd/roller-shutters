@@ -29,6 +29,7 @@
 #define mqttUser ""
 #define mqttPassword ""
 
+#define mqttStatTopic "ew/stat"
 #define mqttCmndTopic "ew/cmnd"
 #define mqttUptimeTopic "ew/uptime"
 
