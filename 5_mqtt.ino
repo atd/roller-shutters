@@ -29,7 +29,7 @@ void mqttReconnect() {
     if (client.connect(mqttClient, mqttUser, mqttPassword)) {
       Serial.println("connected");
 
-      shutters.subscribe(client);
+      shutters.subscribe();
     } else {
       Serial.print("failed, rc=");
       Serial.print(client.state());

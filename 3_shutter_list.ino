@@ -36,9 +36,9 @@ public:
     afterStep();
   }
 
-  void subscribe(PubSubClient client) {
+  void subscribe() {
     for (int i = 0; i < shuttersSize; i++) {
-      list[i]->subscribe(client);
+      list[i]->subscribe();
     }
   }
 
