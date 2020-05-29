@@ -33,14 +33,19 @@ public:
     return newPosition - position;
   }
 
-  void setPosition(int updatePosition) {
+  void setPosition(String updatePosition) {
     Serial.print("setPosition ");
     Serial.print(label + ": ");
     Serial.println(String(updatePosition));
 
-    newPosition = updatePosition;
+    if (updatePosition == "STOP") {
+      newPosition = position;
+      stop();
+    } else {
+      newPosition = updatePosition.toInt();
 
-    updateRelays();
+      updateRelays();  
+    }
   }
   
 

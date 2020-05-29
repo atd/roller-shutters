@@ -42,7 +42,7 @@ public:
     }
   }
 
-  void setPosition(char * label, int newPosition) {
+  void setPosition(char * label, String newPosition) {
     find(label)->setPosition(newPosition);
   }
 

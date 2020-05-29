@@ -13,7 +13,7 @@ void mqttCallback(char* topic, byte* payload, unsigned int length) {
   char label[10];
   sprintf(label, "%s", topic + strlen(mqttCmndTopic) + 1);
 
-  shutters.setPosition(label, message.toInt());
+  shutters.setPosition(label, message);
 }
 
 void mqttSetup() {
