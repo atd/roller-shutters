@@ -20,7 +20,7 @@ public:
 
   void subscribe(PubSubClient client) {
     char topic[50];
-    sprintf(topic,"%s/%s", mqttPositionTopic, label.c_str());
+    sprintf(topic,"%s/%s", mqttCmndTopic, label.c_str());
     client.subscribe(topic);
   }
 

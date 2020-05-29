@@ -11,7 +11,7 @@ void mqttCallback(char* topic, byte* payload, unsigned int length) {
   Serial.print("\n");
 
   char label[10];
-  sprintf(label, "%s", topic + strlen(mqttPositionTopic) + 1);
+  sprintf(label, "%s", topic + strlen(mqttCmndTopic) + 1);
 
   shutters.setPosition(label, message.toInt());
 }

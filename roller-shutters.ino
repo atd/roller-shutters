@@ -29,7 +29,7 @@
 #define mqttUser ""
 #define mqttPassword ""
 
-#define mqttPositionTopic "ew/position"
+#define mqttCmndTopic "ew/cmnd"
 #define mqttUptimeTopic "ew/uptime"
 
 #define shutterRoundTime 24     // Time in seconds it takes to open or close the roller shutter
