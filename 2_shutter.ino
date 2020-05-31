@@ -58,7 +58,7 @@ public:
 
     char positionChar[3];
     sprintf(positionChar, "%i", position);
-    client.publish(statTopic, positionChar);
+    client.publish(statTopic, positionChar, true);
     
     //EEPROM.put(0, shutterPosition);
     //EEPROM.commit();
