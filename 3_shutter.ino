@@ -1,12 +1,14 @@
 class Shutter {
 public:
+  uint8_t index;
   String label;
-  unsigned int position;
-  unsigned int newPosition;
+  uint8_t position;
+  uint8_t newPosition;
   char statTopic[50];
   char cmndTopic[50];
   
-  Shutter(String label, unsigned int pinUp, unsigned int pinDown) {
+  Shutter(unsigned int index, String label, unsigned int pinUp, unsigned int pinDown) {
+    this->index = index;
     this->label = label;
 
     sprintf(statTopic,"%s/%s", mqttStatTopic, label.c_str());
@@ -56,25 +58,33 @@ public:
 
     position += (steps() > 0 ? 1 : -1);
 
-    char positionChar[3];
-    sprintf(positionChar, "%i", position);
-    client.publish(statTopic, positionChar, true);
-    
-    //EEPROM.put(0, shutterPosition);
-    //EEPROM.commit();
+    publishMqtt();
     
     if (steps() == 0) {
+      savePosition();
       stop();
     }
   }
 
+  void savePosition() {
+    Serial.println("Saving " + String(index) + " " + String(position)); 
+    EEPROM.put(index, position);
+    EEPROM.commit();
+  }
+  
   void stop() {
     digitalWrite(_pinUp, HIGH);
     digitalWrite(_pinDown, HIGH);
   }
 
-  void publish() {
+  void publishSerial() {
     Serial.println(label + " position: " + String(position));
+  }
+  
+  void publishMqtt() {
+    char positionChar[3];
+    sprintf(positionChar, "%i", position);
+    client.publish(statTopic, positionChar, true);
   }
 
 private:
@@ -118,13 +128,9 @@ private:
   }
 
   void setupPosition() {
-    //EEPROM.get(0, position);   // Carga de la EEPROM la posición de la persiana
+    EEPROM.get(index, position);
+    newPosition = position;
 
-    if (position > 100) {
-      position = 0;
-      newPosition = 0;
-      //EEPROM.put(0, position);
-      //EEPROM.commit();
-    }
+    Serial.println("Loading " + String(index) + " " + String(position)); 
   }
 };

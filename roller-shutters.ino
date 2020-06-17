@@ -4,8 +4,8 @@
 
 #include <ESP8266WiFi.h>
 #include <PubSubClient.h>
-#include <EEPROM.h>
-#include <ArduinoJson.h>          //https://github.com/bblanchon/ArduinoJson
+#include <ESP_EEPROM.h>    // https://github.com/jwrw/ESP_EEPROM
+#include <ArduinoJson.h>   // https://github.com/bblanchon/ArduinoJson
 
 // ***************
 // Configuration *

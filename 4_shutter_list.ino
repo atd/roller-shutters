@@ -5,9 +5,9 @@ public:
   Shutter *list[shuttersSize];
   
   ShutterList() {
-    list[0] = new Shutter("left", RELAY_LEFT_UP, RELAY_LEFT_DOWN);
-    list[1] = new Shutter("middle", RELAY_MIDDLE_UP, RELAY_MIDDLE_DOWN);
-    list[2] = new Shutter("right", RELAY_RIGHT_UP, RELAY_RIGHT_DOWN);
+    list[0] = new Shutter(0, "left", RELAY_LEFT_UP, RELAY_LEFT_DOWN);
+    list[1] = new Shutter(1, "middle", RELAY_MIDDLE_UP, RELAY_MIDDLE_DOWN);
+    list[2] = new Shutter(2, "right", RELAY_RIGHT_UP, RELAY_RIGHT_DOWN);
   }
 
   Shutter *find(char* label) {
@@ -36,6 +36,11 @@ public:
     afterStep();
   }
 
+  void onMqttConnected() {
+    subscribe();
+    publishMqtt();
+  }
+
   void subscribe() {
     for (int i = 0; i < shuttersSize; i++) {
       list[i]->subscribe();
@@ -46,12 +51,17 @@ public:
     find(label)->setPosition(newPosition);
   }
 
-  void publish() {
+  void publishSerial() {
     for (int i = 0; i < shuttersSize; i++) {
-      list[i]->publish();
+      list[i]->publishSerial();
     }
   }
 
+  void publishMqtt() {
+    for (int i = 0; i < shuttersSize; i++) {
+      list[i]->publishMqtt();
+    }
+  }
 private:
   bool noSteps() {
     for (int i = 0; i < shuttersSize; i++) {

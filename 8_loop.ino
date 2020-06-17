@@ -13,6 +13,7 @@ void loop() {
     lastMsg = now;
     
     publishUptime();
-    shutters.publish();
+    shutters.publishSerial();
+    Serial.println("[EEPROM] Percentage used " + String(EEPROM.percentUsed()));
   }
 }

@@ -1,8 +1,11 @@
 void setup() {
+  Serial.begin(115200);
+
+  delay(4000);
+  
   uptimeSetup();
 
-  //EEPROM.begin(512);
-  Serial.begin(115200);
+  eepromSetup();
 
   shutters.setup();
   
