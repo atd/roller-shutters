@@ -7,13 +7,13 @@ void loop() {
   
   shutters.loop();
 
-  // Las siguientes líneas son sólamente para comprobar el funcionamiento
+  // Check operation
   long now = millis();
   if (now - lastMsg > 10000) {
     lastMsg = now;
     
     publishUptime();
     shutters.publishSerial();
-    Serial.println("[EEPROM] Percentage used " + String(EEPROM.percentUsed()));
+    Serial.println("[EEPROM] " + String(EEPROM.percentUsed()) + "% used");
   }
 }
