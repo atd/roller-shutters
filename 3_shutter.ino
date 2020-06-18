@@ -38,7 +38,7 @@ public:
   void setPosition(String updatePosition) {
     Serial.print("setPosition ");
     Serial.print(label + ": ");
-    Serial.println(String(updatePosition));
+    Serial.println(updatePosition);
 
     if (updatePosition == "STOP") {
       newPosition = position;
