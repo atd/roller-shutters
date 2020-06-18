@@ -42,6 +42,7 @@ public:
 
     if (updatePosition == "STOP") {
       newPosition = position;
+
       stop();
     } else {
       newPosition = updatePosition.toInt();
