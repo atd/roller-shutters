@@ -33,7 +33,7 @@
 #define mqttCmndTopic "ew/cmnd"
 #define mqttUptimeTopic "ew/uptime"
 
-#define shutterRoundTime 24     // Time in seconds it takes to open or close the roller shutter
+#define shutterRoundTime 28     // Time in seconds it takes to open or close the roller shutter
 
 //*****************************************************************************
 
